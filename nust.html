@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fototeca - Mauro Carvalho</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <!-- Starfield Canvas -->
+  <canvas id="starfield"></canvas>
+
+  <!-- Sem Navbar nesta página secreta -->
+
+  <!-- Sections -->
+  <main style="padding-top: 100px;">
+    <section class="content-section dark-bg">
+      <div class="content left-align gallery-content">
+        <h2>@MAURUCARVALHO</h2>
+        <p>Fotos aleatórias do meu dia a dia</p>
+
+        <div class="vsco-grid" id="vscoGrid">
+          <!-- Images will be injected here by JS -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="minimal-footer dark-bg">
+    <p>Mauro Carvalho &copy; 2026 | <a href="https://github.com/maurucarvalho?tab=repositories"
+        target="_blank">GitHub</a> | <a href="https://www.youtube.com/@maurucarvalho"
+        target="_blank">YouTube</a></p>
+  </footer>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Fechar">&times;</button>
+    <button class="lightbox-nav lightbox-prev" id="lightboxPrev" aria-label="Foto anterior">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+        <polyline points="15 18 9 12 15 6"></polyline>
+      </svg>
+    </button>
+    <div class="lightbox-wrapper">
+      <img src="" alt="Fullscreen" class="lightbox-content" id="lightboxImg">
+      <video class="lightbox-content" id="lightboxVideo" controls playsinline style="display: none;"></video>
+      <div class="lightbox-footer" id="lightboxDate"></div>
+    </div>
+    <button class="lightbox-nav lightbox-next" id="lightboxNext" aria-label="Próxima foto">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter">
+        <polyline points="9 18 15 12 9 6"></polyline>
+      </svg>
+    </button>
+  </div>
+
+  <script src="script.js"></script>
+
+  <!-- Dynamic Image & Video Loader -->
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const grid = document.getElementById('vscoGrid');
+      const lb = document.getElementById('lightbox');
+      const lbImg = document.getElementById('lightboxImg');
+      const lbVideo = document.getElementById('lightboxVideo');
+      const lbDate = document.getElementById('lightboxDate');
+      const basePath = 'img/';
+      const extensions = ['jpg', 'png', 'mp4', 'jpeg', 'gif', 'webp', 'webm', 'mov'];
+      const videoExtRegex = /\.(mp4|webm|mov)$/i;
+
+      const photos = [];
+      let activePhotoIndex = 0;
+
+      const closeLightbox = () => {
+        lb.classList.remove('active');
+        lbVideo.pause();
+      };
+
+      const showPhoto = async (index) => {
+        const activeItems = photos.filter(p => !p.removed);
+        if (activeItems.length === 0) return;
+        activePhotoIndex = (index + activeItems.length) % activeItems.length;
+        const item = activeItems[activePhotoIndex];
+
+        lbVideo.pause();
+        if (item.isVideo) {
+          lbImg.style.display = 'none';
+          lbVideo.style.display = 'block';
+          lbVideo.src = item.url;
+          lbVideo.play().catch(() => {});
+        } else {
+          lbVideo.style.display = 'none';
+          lbVideo.removeAttribute('src');
+          lbImg.style.display = 'block';
+          lbImg.src = item.url;
+        }
+
+        lbDate.innerText = `Data: ${item.date || 'Carregando...'}`;
+        lb.classList.add('active');
+
+        if (!item.dateFetched) {
+          item.dateFetched = true;
+          if (window.location.protocol !== 'file:') {
+            try {
+              const res = await fetch(item.url, { method: 'HEAD' });
+              const dateHeader = res.ok ? res.headers.get('Last-Modified') : null;
+              if (dateHeader) {
+                const d = new Date(dateHeader);
+                item.date = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+              } else {
+                item.date = 'Data desconhecida';
+              }
+            } catch (e) {
+              item.date = 'Disponível apenas online (GitHub)';
+            }
+          } else {
+            item.date = 'Disponível apenas online (GitHub)';
+          }
+          if (activeItems[activePhotoIndex] === item) {
+            lbDate.innerText = `Data: ${item.date}`;
+          }
+        }
+      };
+
+      // Lightbox navigation & close events
+      document.getElementById('lightboxPrev').addEventListener('click', (e) => {
+        e.stopPropagation();
+        showPhoto(activePhotoIndex - 1);
+      });
+
+      document.getElementById('lightboxNext').addEventListener('click', (e) => {
+        e.stopPropagation();
+        showPhoto(activePhotoIndex + 1);
+      });
+
+      document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+
+      lb.addEventListener('click', (e) => {
+        if (e.target === lb) {
+          closeLightbox();
+        }
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if (!lb.classList.contains('active')) return;
+        if (e.key === 'ArrowLeft') {
+          showPhoto(activePhotoIndex - 1);
+        } else if (e.key === 'ArrowRight') {
+          showPhoto(activePhotoIndex + 1);
+        } else if (e.key === 'Escape') {
+          closeLightbox();
+        }
+      });
+
+      // Touch swipe support for mobile
+      let touchStartX = 0;
+      lb.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+      }, { passive: true });
+
+      lb.addEventListener('touchend', (e) => {
+        const diff = e.changedTouches[0].screenX - touchStartX;
+        if (Math.abs(diff) > 40) {
+          if (diff > 0) showPhoto(activePhotoIndex - 1);
+          else showPhoto(activePhotoIndex + 1);
+        }
+      }, { passive: true });
+
+      const thumbsPath = 'thumbs/';
+
+      const appendMediaToGrid = (mediaUrl, label, isVideo) => {
+        const mediaObj = { url: mediaUrl, date: null, dateFetched: false, isVideo: !!isVideo, removed: false };
+        photos.push(mediaObj);
+
+        const item = document.createElement('div');
+        item.className = 'vsco-item';
+
+        const spinner = document.createElement('div');
+        spinner.className = 'vsco-spinner';
+        item.appendChild(spinner);
+
+        const openThisItem = () => {
+          const activeItems = photos.filter(p => !p.removed);
+          const idx = activeItems.indexOf(mediaObj);
+          if (idx !== -1) showPhoto(idx);
+        };
+
+        const baseNum = label ? label.replace(/\.[^.]+$/, '') : '';
+        const thumbUrl = `${thumbsPath}${baseNum}.webp`;
+
+        const imgElement = document.createElement('img');
+        imgElement.decoding = 'async';
+        imgElement.alt = label || 'Fototeca';
+        imgElement.style.cursor = 'pointer';
+
+        imgElement.onload = () => {
+          imgElement.classList.add('loaded');
+          spinner.remove();
+        };
+
+        const altExts = ['webp', 'jpg', 'jpeg', 'png', 'gif'];
+        let altIdx = 0;
+        let triedOriginal = false;
+
+        imgElement.onerror = () => {
+          if (isVideo) {
+            // Fallback if a newly added video has no thumbnail in thumbs/ yet
+            imgElement.remove();
+            const vidElement = document.createElement('video');
+            vidElement.src = `${mediaUrl}#t=0.1`;
+            vidElement.muted = true;
+            vidElement.playsInline = true;
+            vidElement.preload = 'metadata';
+            vidElement.style.cursor = 'pointer';
+            vidElement.onloadeddata = () => {
+              vidElement.classList.add('loaded');
+              spinner.remove();
+            };
+            vidElement.onerror = () => {
+              mediaObj.removed = true;
+              item.remove();
+            };
+            vidElement.addEventListener('click', openThisItem);
+            item.insertBefore(vidElement, item.firstChild);
+            return;
+          }
+
+          if (!triedOriginal) {
+            triedOriginal = true;
+            imgElement.src = mediaObj.url;
+            return;
+          }
+
+          while (altIdx < altExts.length) {
+            const tryUrl = `${basePath}${baseNum}.${altExts[altIdx++]}`;
+            if (tryUrl !== mediaObj.url) {
+              mediaObj.url = tryUrl;
+              imgElement.src = tryUrl;
+              return;
+            }
+          }
+          mediaObj.removed = true;
+          item.remove();
+        };
+
+        imgElement.addEventListener('click', openThisItem);
+        imgElement.src = thumbUrl;
+        item.appendChild(imgElement);
+
+        if (isVideo) {
+          const badge = document.createElement('div');
+          badge.className = 'vsco-video-badge';
+          badge.innerHTML = '&#9654;';
+          item.appendChild(badge);
+        }
+
+        grid.appendChild(item);
+      };
+
+      // Try automatic folder discovery first (works on GitHub Pages and local HTTP servers like Live Server)
+      const tryAutoDiscoverFolder = async () => {
+        const mediaRegex = /\.(jpe?g|png|gif|webp|mp4|webm|mov)$/i;
+
+        // 1. GitHub Pages automatic API listing (reads any file name in img/)
+        if (window.location.hostname.endsWith('github.io')) {
+          try {
+            const owner = window.location.hostname.split('.')[0];
+            const pathParts = window.location.pathname.split('/').filter(Boolean);
+            const repo = (pathParts.length > 0 && !pathParts[0].endsWith('.html'))
+              ? pathParts[0]
+              : `${owner}.github.io`;
+            const apiRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${basePath.replace(/\/$/, '')}`);
+            if (apiRes.ok) {
+              const files = await apiRes.json();
+              if (Array.isArray(files)) {
+                const mediaFiles = files
+                  .filter(f => f.type === 'file' && mediaRegex.test(f.name))
+                  .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+                if (mediaFiles.length > 0) {
+                  for (const f of mediaFiles) {
+                    const url = `${basePath}${encodeURIComponent(f.name)}`;
+                    appendMediaToGrid(url, f.name, videoExtRegex.test(f.name));
+                  }
+                  return true;
+                }
+              }
+            }
+          } catch (e) {}
+        }
+
+        // 2. Local HTTP server directory listing (e.g. VS Code Live Server / python http.server)
+        if (window.location.protocol.startsWith('http')) {
+          try {
+            const dirRes = await fetch(basePath);
+            if (dirRes.ok) {
+              const html = await dirRes.text();
+              const doc = new DOMParser().parseFromString(html, 'text/html');
+              const hrefs = Array.from(doc.querySelectorAll('a'))
+                .map(a => a.getAttribute('href'))
+                .filter(h => h && mediaRegex.test(h))
+                .map(h => decodeURIComponent(h.split('/').pop()))
+                .filter((v, i, arr) => arr.indexOf(v) === i)
+                .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+              if (hrefs.length > 0) {
+                for (const name of hrefs) {
+                  const url = `${basePath}${encodeURIComponent(name)}`;
+                  appendMediaToGrid(url, name, videoExtRegex.test(name));
+                }
+                return true;
+              }
+            }
+          } catch (e) {}
+        }
+
+        return false;
+      };
+
+      const discovered = await tryAutoDiscoverFolder();
+
+      // 3. Fast manifest + lightweight probe for new files when opened via local file://
+      if (!discovered) {
+        const knownFiles = [
+          '0.webp',
+          '1.webp','2.webp','3.webp','4.webp','5.webp','6.webp','7.webp','8.webp','9.webp','10.webp',
+          '11.webp','12.mp4','13.webp','14.webp','15.webp','16.webp','17.webp','18.webp','19.webp','20.webp',
+          '21.webp','22.webp','23.webp','24.webp','25.webp','26.webp','27.webp','28.webp','29.webp','30.webp',
+          '31.webp','32.webp','33.webp','34.webp','35.webp','36.webp','37.webp','38.webp','39.webp','40.webp',
+          '41.webp','42.webp','43.webp','44.webp','45.webp','46.webp','47.webp','48.webp','49.webp','50.webp',
+          '51.webp','52.webp','53.webp','54.webp','55.webp','56.webp','57.webp','58.webp','59.webp','60.webp',
+          '61.webp','62.webp','63.webp','64.webp','65.webp','66.webp','67.webp','68.webp','69.webp','70.webp',
+          '71.webp','72.webp','73.webp','74.webp','75.webp','76.webp','77.webp','78.webp','79.webp','80.mp4',
+          '81.webp','82.webp'
+        ];
+
+        for (const name of knownFiles) {
+          appendMediaToGrid(`${basePath}${name}`, name, videoExtRegex.test(name));
+        }
+
+        // Also check gently in the background if any new numbered files (83+) were added
+        const probeSingleNumber = async (num) => {
+          for (const ext of ['webp', 'jpg', 'jpeg', 'png', 'gif', 'mp4']) {
+            const url = `${basePath}${num}.${ext}`;
+            const isVideo = ext === 'mp4';
+            const exists = await new Promise((resolve) => {
+              if (isVideo) {
+                const v = document.createElement('video');
+                v.preload = 'metadata';
+                v.onloadedmetadata = () => { v.src = ''; resolve(true); };
+                v.onerror = () => resolve(false);
+                v.src = url;
+              } else {
+                const img = new Image();
+                img.onload = () => resolve(true);
+                img.onerror = () => resolve(false);
+                img.src = url;
+              }
+            });
+            if (exists) return { url, name: `${num}.${ext}`, isVideo };
+          }
+          return null;
+        };
+
+        let nextNum = 83;
+        let misses = 0;
+        while (misses < 5) {
+          const found = await probeSingleNumber(nextNum);
+          if (found) {
+            misses = 0;
+            appendMediaToGrid(found.url, found.name, found.isVideo);
+          } else {
+            misses++;
+          }
+          nextNum++;
+        }
+      }
+
+      if (photos.length === 0) {
+        grid.innerHTML = '<p style="color: #666; text-align: center; width: 100%;">Nenhuma foto encontrada na pasta img/.</p>';
+      }
+    });
+  </script>
+</body>
+
+</html>
