@@ -73,6 +73,7 @@
 
       const closeLightbox = () => {
         lb.classList.remove('active');
+        document.body.classList.remove('lightbox-open');
         lbVideo.pause();
       };
 
@@ -97,6 +98,7 @@
 
         lbDate.innerText = `Data: ${item.date || 'Carregando...'}`;
         lb.classList.add('active');
+        document.body.classList.add('lightbox-open');
 
         if (!item.dateFetched) {
           item.dateFetched = true;
@@ -152,25 +154,47 @@
         }
       });
 
-      // Touch swipe support for mobile
+      // Touch swipe support for mobile (ignores pinch-to-zoom and panning while zoomed)
       let touchStartX = 0;
+      let touchStartY = 0;
+      let isMultiTouch = false;
+
       lb.addEventListener('touchstart', (e) => {
-        touchStartX = e.changedTouches[0].screenX;
+        if (e.touches.length > 1) {
+          isMultiTouch = true;
+          return;
+        }
+        isMultiTouch = false;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+
+      lb.addEventListener('touchmove', (e) => {
+        if (e.touches.length > 1) {
+          isMultiTouch = true;
+        }
       }, { passive: true });
 
       lb.addEventListener('touchend', (e) => {
-        const diff = e.changedTouches[0].screenX - touchStartX;
-        if (Math.abs(diff) > 40) {
-          if (diff > 0) showPhoto(activePhotoIndex - 1);
+        if (isMultiTouch || e.touches.length > 0) return;
+        if (window.visualViewport && window.visualViewport.scale > 1.05) return;
+        const diffX = e.changedTouches[0].clientX - touchStartX;
+        const diffY = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
+          if (diffX > 0) showPhoto(activePhotoIndex - 1);
           else showPhoto(activePhotoIndex + 1);
         }
       }, { passive: true });
 
       const thumbsPath = 'thumbs/';
 
-      const appendMediaToGrid = (mediaUrl, label, isVideo) => {
+      const appendMediaToGrid = (mediaUrl, label, isVideo, prepend = false) => {
         const mediaObj = { url: mediaUrl, date: null, dateFetched: false, isVideo: !!isVideo, removed: false };
-        photos.push(mediaObj);
+        if (prepend) {
+          photos.unshift(mediaObj);
+        } else {
+          photos.push(mediaObj);
+        }
 
         const item = document.createElement('div');
         item.className = 'vsco-item';
@@ -254,7 +278,11 @@
           item.appendChild(badge);
         }
 
-        grid.appendChild(item);
+        if (prepend && grid.firstChild) {
+          grid.insertBefore(item, grid.firstChild);
+        } else {
+          grid.appendChild(item);
+        }
       };
 
       // Try automatic folder discovery first (works on GitHub Pages and local HTTP servers like Live Server)
@@ -275,7 +303,7 @@
               if (Array.isArray(files)) {
                 const mediaFiles = files
                   .filter(f => f.type === 'file' && mediaRegex.test(f.name))
-                  .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+                  .sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true, sensitivity: 'base' }));
                 if (mediaFiles.length > 0) {
                   for (const f of mediaFiles) {
                     const url = `${basePath}${encodeURIComponent(f.name)}`;
@@ -300,7 +328,7 @@
                 .filter(h => h && mediaRegex.test(h))
                 .map(h => decodeURIComponent(h.split('/').pop()))
                 .filter((v, i, arr) => arr.indexOf(v) === i)
-                .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+                .sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }));
               if (hrefs.length > 0) {
                 for (const name of hrefs) {
                   const url = `${basePath}${encodeURIComponent(name)}`;
@@ -320,16 +348,16 @@
       // 3. Fast manifest + lightweight probe for new files when opened via local file://
       if (!discovered) {
         const knownFiles = [
-          '0.webp',
-          '1.webp','2.webp','3.webp','4.webp','5.webp','6.webp','7.webp','8.webp','9.webp','10.webp',
-          '11.webp','12.mp4','13.webp','14.webp','15.webp','16.webp','17.webp','18.webp','19.webp','20.webp',
-          '21.webp','22.webp','23.webp','24.webp','25.webp','26.webp','27.webp','28.webp','29.webp','30.webp',
-          '31.webp','32.webp','33.webp','34.webp','35.webp','36.webp','37.webp','38.webp','39.webp','40.webp',
-          '41.webp','42.webp','43.webp','44.webp','45.webp','46.webp','47.webp','48.webp','49.webp','50.webp',
-          '51.webp','52.webp','53.webp','54.webp','55.webp','56.webp','57.webp','58.webp','59.webp','60.webp',
-          '61.webp','62.webp','63.webp','64.webp','65.webp','66.webp','67.webp','68.webp','69.webp','70.webp',
-          '71.webp','72.webp','73.webp','74.webp','75.webp','76.webp','77.webp','78.webp','79.webp','80.mp4',
-          '81.webp','82.webp'
+          '82.webp','81.webp','80.mp4',
+          '79.webp','78.webp','77.webp','76.webp','75.webp','74.webp','73.webp','72.webp','71.webp',
+          '70.webp','69.webp','68.webp','67.webp','66.webp','65.webp','64.webp','63.webp','62.webp','61.webp',
+          '60.webp','59.webp','58.webp','57.webp','56.webp','55.webp','54.webp','53.webp','52.webp','51.webp',
+          '50.webp','49.webp','48.webp','47.webp','46.webp','45.webp','44.webp','43.webp','42.webp','41.webp',
+          '40.webp','39.webp','38.webp','37.webp','36.webp','35.webp','34.webp','33.webp','32.webp','31.webp',
+          '30.webp','29.webp','28.webp','27.webp','26.webp','25.webp','24.webp','23.webp','22.webp','21.webp',
+          '20.webp','19.webp','18.webp','17.webp','16.webp','15.webp','14.webp','13.webp','12.mp4','11.webp',
+          '10.webp','9.webp','8.webp','7.webp','6.webp','5.webp','4.webp','3.webp','2.webp','1.webp',
+          '0.webp'
         ];
 
         for (const name of knownFiles) {
@@ -366,7 +394,7 @@
           const found = await probeSingleNumber(nextNum);
           if (found) {
             misses = 0;
-            appendMediaToGrid(found.url, found.name, found.isVideo);
+            appendMediaToGrid(found.url, found.name, found.isVideo, true);
           } else {
             misses++;
           }
