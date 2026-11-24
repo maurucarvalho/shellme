@@ -479,8 +479,17 @@ h3 {
 }
 
 /* Lightbox Modal */
+html.lightbox-open,
 body.lightbox-open {
-  overflow: hidden;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+body.lightbox-open {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
 }
 
 body.lightbox-open main,
