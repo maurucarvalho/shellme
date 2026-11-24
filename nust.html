@@ -70,10 +70,31 @@
 
       const photos = [];
       let activePhotoIndex = 0;
+      let savedScrollY = 0;
+
+      const lockPageScroll = () => {
+        if (!document.body.classList.contains('lightbox-open')) {
+          savedScrollY = window.scrollY || window.pageYOffset || 0;
+          document.body.style.top = `-${savedScrollY}px`;
+          document.documentElement.classList.add('lightbox-open');
+          document.body.classList.add('lightbox-open');
+        }
+      };
+
+      const unlockPageScroll = () => {
+        if (document.body.classList.contains('lightbox-open')) {
+          document.documentElement.classList.remove('lightbox-open');
+          document.body.classList.remove('lightbox-open');
+          document.body.style.top = '';
+          document.documentElement.style.scrollBehavior = 'auto';
+          window.scrollTo(0, savedScrollY);
+          document.documentElement.style.scrollBehavior = '';
+        }
+      };
 
       const closeLightbox = () => {
         lb.classList.remove('active');
-        document.body.classList.remove('lightbox-open');
+        unlockPageScroll();
         lbVideo.pause();
       };
 
@@ -97,8 +118,8 @@
         }
 
         lbDate.innerText = `Data: ${item.date || 'Carregando...'}`;
+        lockPageScroll();
         lb.classList.add('active');
-        document.body.classList.add('lightbox-open');
 
         if (!item.dateFetched) {
           item.dateFetched = true;
@@ -172,8 +193,16 @@
       lb.addEventListener('touchmove', (e) => {
         if (e.touches.length > 1) {
           isMultiTouch = true;
+          return;
         }
-      }, { passive: true });
+        if (!window.visualViewport || window.visualViewport.scale <= 1.05) {
+          e.preventDefault();
+        }
+      }, { passive: false });
+
+      lb.addEventListener('wheel', (e) => {
+        e.preventDefault();
+      }, { passive: false });
 
       lb.addEventListener('touchend', (e) => {
         if (isMultiTouch || e.touches.length > 0) return;
