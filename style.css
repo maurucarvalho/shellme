@@ -428,20 +428,28 @@ h3 {
 
 .vsco-video-badge {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  background: rgba(0, 0, 0, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  color: #fff;
-  font-size: 10px;
-  width: 24px;
-  height: 24px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.85);
+  color: #000;
+  font-size: 18px;
+  width: 48px;
+  height: 48px;
   border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  transition: transform 0.25s ease, background-color 0.25s ease;
   pointer-events: none;
   z-index: 2;
+}
+
+.vsco-item:hover .vsco-video-badge {
+  transform: translate(-50%, -50%) scale(1.08);
+  background: #fff;
 }
 
 .vsco-item::after {
@@ -471,6 +479,16 @@ h3 {
 }
 
 /* Lightbox Modal */
+body.lightbox-open {
+  overflow: hidden;
+}
+
+body.lightbox-open main,
+body.lightbox-open footer {
+  pointer-events: none;
+  user-select: none;
+}
+
 .lightbox {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
